@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="mr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoiceGen – Text to Speech</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#182033;background:#f4f6fb}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:900px;margin:28px auto;padding:16px}
+header{background:linear-gradient(120deg,#273cbb,#7657d5);color:#fff;padding:28px;border-radius:22px}
+h1{margin:0 0 8px;font-size:clamp(26px,5vw,38px)}header p{margin:0;opacity:.9}
+.panel{background:white;margin-top:18px;padding:22px;border-radius:18px;box-shadow:0 8px 28px #15244b12}
+label{display:block;font-weight:650;margin:14px 0 7px}
+textarea,select,input{width:100%;padding:13px;border:1px solid #d9deea;border-radius:11px;font:inherit;background:#fff}
+textarea{min-height:190px;resize:vertical}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+button{border:0;border-radius:12px;padding:14px 20px;font:inherit;font-weight:700;cursor:pointer}
+.primary{background:#3548c8;color:white;width:100%;margin-top:18px}.secondary{background:#eef0ff;color:#2939a8}
+button:disabled{opacity:.55;cursor:wait}
+.meta{display:flex;justify-content:space-between;color:#68718a;font-size:13px;margin-top:6px}
+#status{margin-top:14px;color:#38415a;white-space:pre-wrap}
+audio{width:100%;margin-top:12px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+small{color:#68718a;line-height:1.5}.foot{text-align:center;color:#7b8499;font-size:12px;margin:20px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{margin:8px auto;padding:10px}.panel{padding:16px}header{padding:22px}}
+</style></head>
+<body><main class="wrap">
+<header><h1>🎙️ VoiceGen</h1><p>तुमचा मजकूर आवाजात बदला — मराठी, हिंदी आणि English</p></header>
+<section class="panel">
+<label for="text">तुमचा मजकूर लिहा</label>
+<textarea id="text" maxlength="4000" placeholder="इथे मजकूर टाइप करा..."></textarea>
+<div class="meta"><span>कमाल 4,000 अक्षरे</span><span id="count">0 / 4000</span></div>
+<div class="grid">
+<div><label for="lang">भाषा</label><select id="lang">
+<option value="mr-IN">मराठी</option><option value="hi-IN">हिंदी</option><option value="en-IN">English (India)</option>
+</select></div>
+<div><label for="gender">Voice</label><select id="gender">
+<option value="FEMALE">Female</option><option value="MALE">Male</option>
+</select></div>
+<div><label for="rate">बोलण्याचा वेग</label><select id="rate">
+<option value="0.85">हळू</option><option value="1" selected>सामान्य</option><option value="1.15">जलद</option>
+</select></div>
+<div><label for="pitch">आवाजाची पट्टी</label><select id="pitch">
+<option value="-2">कमी</option><option value="0" selected>सामान्य</option><option value="2">जास्त</option>
+</select></div></div>
+<button class="primary" id="generate">🔊 Generate Speech</button>
+<div id="status" role="status" aria-live="polite"></div>
+<div id="playerWrap" hidden><audio id="player" controls></audio><div class="actions"><a id="download" download="voicegen.mp3"><button class="secondary" type="button">⬇ Download MP3</button></a></div></div>
+<small>टीप: प्रत्येक Generate विनंतीसाठी Google Cloud Text-to-Speech वापरले जाते. वेबसाइट मालकाने API वापर मर्यादा आणि Billing नियंत्रण सेट करावे.</small>
+</section><div class="foot">VoiceGen • Text to Speech</div></main>
+<script>
+const $=id=>document.getElementById(id);
+let currentUrl=null;
+$('text').addEventListener('input',()=>{$('count').textContent=`${$('text').value.length} / 4000`;});
+$('generate').addEventListener('click', async()=>{
+ const text=$('text').value.trim();
+ if(!text){$('status').textContent='कृपया आधी मजकूर लिहा.';return;}
+ if(text.length>4000){$('status').textContent='मजकूर 4,000 अक्षरांपेक्षा कमी ठेवा.';return;}
+ const btn=$('generate');btn.disabled=true;$('playerWrap').hidden=true;$('status').textContent='आवाज तयार होत आहे...';
+ try{
+  const res=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   text,languageCode:$('lang').value,gender:$('gender').value,speakingRate:Number($('rate').value),pitch:Number($('pitch').value)
+  })});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error||`Request failed (${res.status})`);
+  const bytes=Uint8Array.from(atob(data.audioContent),c=>c.charCodeAt(0));
+  const blob=new Blob([bytes],{type:'audio/mpeg'});
+  if(currentUrl)URL.revokeObjectURL(currentUrl);
+  currentUrl=URL.createObjectURL(blob);$('player').src=currentUrl;$('download').href=currentUrl;
+  $('playerWrap').hidden=false;$('status').textContent='आवाज तयार झाला! Play किंवा Download करा.';
+ }catch(e){$('status').textContent='त्रुटी: '+e.message;}
+ finally{btn.disabled=false;}
+});
+</script></body></html>
